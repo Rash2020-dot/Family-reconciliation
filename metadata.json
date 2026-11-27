@@ -1,0 +1,6 @@
+{
+  "name": "Production & Material Requirement Dashboard",
+  "description": "Real-time production analytics, BOM reconciliation, and material requirement tracking dashboard built with React, TypeScript, and SheetJS.",
+  "requestFramePermissions": [],
+  "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
+}

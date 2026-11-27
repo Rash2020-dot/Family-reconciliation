@@ -1,0 +1,1178 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Production & Material Requirement Dashboard</title>
+    <!-- SheetJS for Excel Reading -->
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
+    <!-- FontAwesome Icons -->
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <!-- Google Font (Plus Jakarta Sans) -->
+    <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+    
+    <style>
+        :root {
+            --primary: #4f46e5;
+            --primary-hover: #4338ca;
+            --bg-main: #f8fafc;
+            --card-bg: #ffffff;
+            --text-main: #0f172a;
+            --text-muted: #64748b;
+            --border-color: #e2e8f0;
+            --success: #10b981;
+            --danger: #ef4444;
+            --warning: #f59e0b;
+            --info: #06b6d4;
+        }
+
+        * { box-sizing: border-box; }
+
+        body { 
+            font-family: 'Plus Jakarta Sans', sans-serif; 
+            background-color: var(--bg-main); 
+            margin: 0; 
+            padding: 20px; 
+            color: var(--text-main); 
+            font-size: 13px; 
+            transform-origin: top left; 
+            transition: transform 0.1s ease; 
+        }
+
+        /* Top Header */
+        .app-header { 
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            background: linear-gradient(135deg, #1e1b4b 0%, #312e81 100%); 
+            color: white; 
+            padding: 16px 24px; 
+            border-radius: 12px; 
+            margin-bottom: 20px; 
+            box-shadow: 0 10px 15px -3px rgba(0, 0, 0, 0.1);
+        }
+        .app-header h2 { margin: 0; font-size: 20px; font-weight: 700; display: flex; align-items: center; gap: 10px; }
+        .app-header .subtitle { font-size: 12px; color: #a5b4fc; margin-top: 4px; }
+        
+        .developer-badge {
+            background: rgba(255, 255, 255, 0.1);
+            border: 1px solid rgba(255, 255, 255, 0.2);
+            padding: 6px 14px;
+            border-radius: 20px;
+            font-size: 11px;
+            font-weight: 600;
+            color: #c7d2fe;
+            display: flex;
+            align-items: center;
+            gap: 6px;
+        }
+
+        /* KPI Cards Section */
+        .kpi-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(190px, 1fr));
+            gap: 15px;
+            margin-bottom: 20px;
+        }
+        .kpi-card {
+            background: var(--card-bg);
+            padding: 16px;
+            border-radius: 12px;
+            border: 1px solid var(--border-color);
+            box-shadow: 0 1px 3px rgba(0,0,0,0.05);
+            display: flex;
+            align-items: center;
+            gap: 15px;
+        }
+        .kpi-icon {
+            width: 45px;
+            height: 45px;
+            border-radius: 10px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 20px;
+            flex-shrink: 0;
+        }
+        .kpi-info .kpi-label { font-size: 11px; font-weight: 600; color: var(--text-muted); text-transform: uppercase; }
+        .kpi-info .kpi-value { font-size: 18px; font-weight: 800; color: var(--text-main); margin-top: 2px; }
+
+        /* Controls Section */
+        .controls { 
+            background: var(--card-bg); 
+            padding: 16px 20px; 
+            border-radius: 12px; 
+            border: 1px solid var(--border-color);
+            box-shadow: 0 1px 3px rgba(0,0,0,0.05); 
+            margin-bottom: 20px; 
+            display: flex; 
+            align-items: center; 
+            gap: 15px; 
+            flex-wrap: wrap;
+        }
+        .upload-area { 
+            border: 2px dashed #a5b4fc; 
+            padding: 8px 16px; 
+            border-radius: 8px; 
+            background: #f5f3ff; 
+            flex-grow: 1;
+            display: flex;
+            align-items: center;
+            gap: 10px;
+        }
+        .upload-area label { font-weight: 600; color: var(--primary); cursor: pointer; }
+        input[type="file"] { font-size: 12px; color: var(--text-muted); }
+        
+        select, button { 
+            padding: 8px 16px; 
+            border-radius: 6px; 
+            border: 1px solid var(--border-color); 
+            font-size: 12px; 
+            font-weight: 600;
+            cursor: pointer;
+            transition: all 0.2s ease;
+            display: flex;
+            align-items: center;
+            gap: 6px;
+        }
+        
+        .action-btn { border: none; color: white; }
+        .action-btn:hover { transform: translateY(-1px); box-shadow: 0 4px 6px -1px rgba(0,0,0,0.1); }
+        
+        button.process-btn { background-color: var(--primary); }
+        button.process-btn:hover { background-color: var(--primary-hover); }
+        
+        button.export-btn { background-color: #10b981; color: white; }
+        button.export-btn:hover { background-color: #059669; }
+        
+        button.export-html-btn { background-color: #06b6d4; color: white; }
+        button.export-html-btn:hover { background-color: #0891b2; }
+        
+        .zoom-controls { 
+            display: flex; 
+            align-items: center; 
+            gap: 4px; 
+            background: #f1f5f9; 
+            padding: 4px; 
+            border-radius: 8px; 
+            border: 1px solid var(--border-color); 
+            margin-left: auto; 
+        }
+        .zoom-controls button { background: white; border: 1px solid var(--border-color); padding: 4px 10px; border-radius: 4px; color: var(--text-main); }
+        .zoom-controls button:hover { background: var(--primary); color: white; border-color: var(--primary); }
+        .zoom-text { font-weight: 700; min-width: 45px; text-align: center; font-size: 12px; color: var(--primary); }
+
+        /* Tabs */
+        .tab-container { display: flex; gap: 8px; margin-bottom: 15px; border-bottom: 2px solid var(--border-color); padding-bottom: 2px; }
+        .tab-btn { 
+            background: transparent; 
+            border: none; 
+            padding: 10px 18px; 
+            border-radius: 8px 8px 0 0; 
+            font-weight: 700; 
+            color: var(--text-muted); 
+            transition: 0.2s; 
+            cursor: pointer; 
+            font-size: 13px; 
+        }
+        .tab-btn:hover { color: var(--primary); background: #f1f5f9; }
+        .tab-btn.active { background: var(--primary); color: white; }
+        
+        .tab-content { display: none; }
+        .tab-content.active { display: block; }
+
+        /* Search input */
+        .table-search-wrapper { position: relative; width: 300px; margin-bottom: 12px; }
+        .table-search-wrapper i { position: absolute; left: 12px; top: 50%; transform: translateY(-50%); color: var(--text-muted); }
+        .table-search { 
+            width: 100%; 
+            padding: 8px 12px 8px 36px; 
+            border: 1.5px solid var(--border-color); 
+            border-radius: 8px; 
+            font-size: 12px; 
+            outline: none; 
+            transition: 0.2s;
+        }
+        .table-search:focus { border-color: var(--primary); box-shadow: 0 0 0 3px rgba(79, 70, 229, 0.15); }
+
+        /* Tables */
+        .table-wrapper { 
+            overflow-x: auto; 
+            background: var(--card-bg); 
+            box-shadow: 0 4px 6px -1px rgba(0,0,0,0.05); 
+            border-radius: 10px; 
+            border: 1px solid var(--border-color);
+            margin-bottom: 15px; 
+            max-height: 70vh;
+        }
+        table { width: 100%; border-collapse: collapse; min-width: 100%; }
+        th, td { padding: 10px 12px; text-align: right; border-bottom: 1px solid var(--border-color); font-size: 12px; white-space: nowrap; }
+        th { 
+            background-color: #f8fafc; 
+            color: var(--text-muted); 
+            font-weight: 700; 
+            text-align: center; 
+            position: sticky; 
+            top: 0; 
+            z-index: 10;
+            border-bottom: 2px solid var(--border-color);
+            text-transform: uppercase;
+            font-size: 11px;
+            letter-spacing: 0.5px;
+        }
+        td:first-child { text-align: left; font-weight: 600; color: var(--text-main); }
+        .text-center { text-align: center !important; }
+        .text-left { text-align: left !important; }
+        
+        tr:hover { background-color: #f1f5f9; }
+
+        /* Badges / Value formatting */
+        .badge {
+            padding: 3px 8px;
+            border-radius: 12px;
+            font-weight: 700;
+            font-size: 11px;
+            display: inline-block;
+        }
+        .excess { color: #047857; background: #d1fae5; }
+        .shortage { color: #b91c1c; background: #fee2e2; }
+        .zero-val { color: #94a3b8; font-weight: 500; } 
+        
+        .level-family { background-color: #e0e7ff !important; font-weight: 800; color: #1e1b4b; }
+        .level-style { background-color: #f1f5f9 !important; font-weight: 700; color: var(--primary); }
+        .level-sku { font-size: 0.95em; color: var(--text-main); background-color: #fff; }
+        
+        .btn-bom { 
+            background-color: #e0e7ff; 
+            color: var(--primary); 
+            border: 1px solid #c7d2fe; 
+            padding: 3px 8px; 
+            font-size: 11px; 
+            border-radius: 4px; 
+            cursor: pointer; 
+            margin-left: 8px; 
+            transition: 0.2s; 
+            font-weight: 700;
+        }
+        .btn-bom:hover { background-color: var(--primary); color: white; }
+
+        #loading { 
+            display: none; 
+            color: var(--primary); 
+            font-weight: 700; 
+            margin-bottom: 10px; 
+            font-size: 13px; 
+            background: #e0e7ff;
+            padding: 10px 15px;
+            border-radius: 8px;
+            text-align: center;
+        }
+
+        /* Footer */
+        .app-footer {
+            text-align: center;
+            padding: 15px 0;
+            margin-top: 20px;
+            font-size: 12px;
+            color: var(--text-muted);
+            border-top: 1px solid var(--border-color);
+            font-weight: 600;
+        }
+        .app-footer span {
+            color: var(--primary);
+            font-weight: 700;
+        }
+    </style>
+</head>
+<body>
+
+    <!-- Header Section -->
+    <div class="app-header">
+        <div>
+            <h2 id="main-title"><i class="fa-solid fa-chart-line"></i> Production & Material Requirement Dashboard</h2>
+            <div class="subtitle">Real-time Analytics, BOM Reconciliation & Material Tracking</div>
+        </div>
+        <div class="developer-badge">
+            <i class="fa-solid fa-code"></i> Developed by Rashmi Peiris
+        </div>
+    </div>
+
+    <!-- Top KPI Cards Section -->
+    <div class="kpi-grid">
+        <div class="kpi-card">
+            <div class="kpi-icon" style="background:#e0e7ff; color:#4f46e5;"><i class="fa-solid fa-boxes-stacked"></i></div>
+            <div class="kpi-info">
+                <div class="kpi-label">Total Order Qty</div>
+                <div class="kpi-value" id="kpi-total-order">0</div>
+            </div>
+        </div>
+        <div class="kpi-card">
+            <div class="kpi-icon" style="background:#d1fae5; color:#10b981;"><i class="fa-solid fa-truck-fast"></i></div>
+            <div class="kpi-info">
+                <div class="kpi-label">Total Shipped Qty</div>
+                <div class="kpi-value" id="kpi-total-shipped">0</div>
+            </div>
+        </div>
+        <div class="kpi-card">
+            <div class="kpi-icon" style="background:#e0f2fe; color:#0284c7;"><i class="fa-solid fa-coins"></i></div>
+            <div class="kpi-info">
+                <div class="kpi-label">Total Order Value</div>
+                <div class="kpi-value" id="kpi-total-order-value">€0.00</div>
+            </div>
+        </div>
+        <div class="kpi-card">
+            <div class="kpi-icon" style="background:#fef3c7; color:#d97706;"><i class="fa-solid fa-euro-sign"></i></div>
+            <div class="kpi-info">
+                <div class="kpi-label">Total Saving</div>
+                <div class="kpi-value" id="kpi-total-saving">€0.00</div>
+            </div>
+        </div>
+        <div class="kpi-card">
+            <div class="kpi-icon" style="background:#dcfce7; color:#16a34a;"><i class="fa-solid fa-percent"></i></div>
+            <div class="kpi-info">
+                <div class="kpi-label">Additional Profit %</div>
+                <div class="kpi-value" id="kpi-profit-pct">0.00%</div>
+            </div>
+        </div>
+        <div class="kpi-card">
+            <div class="kpi-icon" style="background:#cff4fc; color:#0891b2;"><i class="fa-solid fa-warehouse"></i></div>
+            <div class="kpi-info">
+                <div class="kpi-label">Excess Stock Value</div>
+                <div class="kpi-value" id="kpi-excess-value">€0.00</div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Control Toolbar -->
+    <div class="controls" id="top-controls">
+        <div class="upload-area" id="upload-section">
+            <i class="fa-solid fa-file-excel fa-lg" style="color: #10b981;"></i>
+            <div>
+                <label for="fileInput">Select Excel File(s):</label><br>
+                <input type="file" id="fileInput" multiple accept=".xlsx, .xls, .csv">
+            </div>
+        </div>
+        
+        <div>
+            <label style="display:block; font-weight:600; margin-bottom:4px; color:var(--text-muted); font-size:11px;">VIEW LEVEL</label>
+            <select id="viewLevel" onchange="renderProductionTable()">
+                <option value="family" selected>Family Level</option>
+                <option value="style">Style Level</option>
+                <option value="sku">SKU Level (Detailed)</option>
+            </select>
+        </div>
+
+        <button class="process-btn action-btn" onclick="processFiles()"><i class="fa-solid fa-gear"></i> Process Files</button>
+        <button class="export-btn action-btn" onclick="exportToExcel()"><i class="fa-solid fa-file-export"></i> Export Excel</button>
+        <button class="export-html-btn action-btn" onclick="exportToHTML()"><i class="fa-solid fa-globe"></i> Export HTML</button>
+
+        <div class="zoom-controls">
+            <span style="font-size:11px; font-weight:700; color:var(--text-muted); margin-right:4px;"><i class="fa-solid fa-magnifying-glass"></i></span>
+            <button onclick="changeZoom(-10)">-</button>
+            <span id="zoomVal" class="zoom-text">100%</span>
+            <button onclick="changeZoom(10)">+</button>
+            <button onclick="resetZoom()">Reset</button>
+        </div>
+    </div>
+    
+    <div id="loading"><i class="fa-solid fa-spinner fa-spin"></i> Processing files... Please wait.</div>
+
+    <!-- Navigation Tabs -->
+    <div class="tab-container">
+        <button class="tab-btn active" onclick="switchTab('productionTab', this)"><i class="fa-solid fa-chart-pie"></i> Production & Shipping Summary</button>
+        <button class="tab-btn" onclick="switchTab('materialTab', this)"><i class="fa-solid fa-scissors"></i> Material & Article Requirement</button>
+    </div>
+
+    <!-- Tab 1: Production -->
+    <div id="productionTab" class="tab-content active">
+        <div class="table-wrapper">
+            <table>
+                <thead>
+                    <tr>
+                        <th class="text-left">Category (Family / Style / SKU)</th>
+                        <th>Order Qty</th>
+                        <th>5% Additional Qty</th>
+                        <th>Pre Estimated Qty</th>
+                        <th>Actual Cutting</th>
+                        <th>Actual Additional Cut</th>
+                        <th>Bundle Qty</th>
+                        <th>1st Quality Ship</th>
+                        <th>2nd Quality Ship</th>
+                        <th>Total Ship</th>
+                        <th>Variance (Ship - Bundle)</th>
+                        <th>Variance (Ship - Order)</th>
+                        <th>Variance %</th>
+                        <th style="background:#e0f2fe; color:#0369a1;">Total Order Value (€)</th>
+                        <th style="background:#e0e7ff; color:#3730a3;">Actual Net Saving / Loss (€)</th>
+                        <th style="background:#dcfce7; color:#15803d;">Additional Profit %</th>
+                    </tr>
+                </thead>
+                <tbody id="productionTableBody">
+                    <tr><td colspan="16" class="text-center" style="color: var(--text-muted); padding:30px;">කරුණාකර Excel ෆයිල් Upload කර "Process Files" ඔබන්න.</td></tr>
+                </tbody>
+            </table>
+        </div>
+    </div>
+
+    <!-- Tab 2: Material -->
+    <div id="materialTab" class="tab-content">
+        <div class="table-search-wrapper">
+            <i class="fa-solid fa-magnifying-glass"></i>
+            <input type="text" id="articleSearch" class="table-search" placeholder="Search Article / Material..." onkeyup="filterArticleTable()">
+        </div>
+        <div class="table-wrapper">
+            <table>
+                <thead>
+                    <tr>
+                        <th class="text-left">Article / Material</th>
+                        <th class="text-center">Type</th>
+                        <th style="background:#f3e8ff; color:#6b21a8;">U Price (€)</th>
+                        <th>Additional Reqmnt</th>
+                        <th>Add Cutting Provide</th>
+                        <th>Scrap</th>
+                        <th>Add Planing Provide</th>
+                        <th>Planning Re order</th>
+                        <th>Requirement Qty</th>
+                        <th>Shortage</th>
+                        <th>Qty Withdrawn</th>
+                        <th style="background:#fef3c7; color:#92400e;">Variance (Req - Withdraw)</th>
+                        <th style="background:#fef3c7; color:#92400e;">Variance %</th>
+                        <th style="background:#e0f2fe; color:#075985;">Excess Stock</th>
+                        <th style="background:#e0f2fe; color:#075985;">Excess Stock Value (€)</th>
+                    </tr>
+                </thead>
+                <tbody id="materialTableBody">
+                    <tr><td colspan="15" class="text-center" style="color: var(--text-muted); padding:30px;">කරුණාකර Excel ෆයිල් Upload කර "Process Files" ඔබන්න.</td></tr>
+                </tbody>
+            </table>
+        </div>
+    </div>
+
+    <!-- Footer Section -->
+    <div class="app-footer">
+        Designed & Developed by <span>Rashmi Peiris</span> | Enterprise Dashboard System
+    </div>
+
+    <script>
+        let globalProductionData = []; 
+        let globalMaterialData = [];
+        let globalSkuMaster = {}; 
+        let articleMaster = {};
+        let rawBOMData = [];
+        let materialTypeMap = {}; // Normalized Material Key -> Type string
+        let currentZoomLevel = 100;
+
+        // Key Normalizer to ensure 100% exact match across sheets
+        function normalizeMatKey(str) {
+            if (!str) return "";
+            return String(str).trim().toLowerCase().replace(/\s+/g, "");
+        }
+
+        function changeZoom(delta) { currentZoomLevel = Math.max(50, Math.min(150, currentZoomLevel + delta)); applyZoom(); }
+        function resetZoom() { currentZoomLevel = 100; applyZoom(); }
+        function applyZoom() { document.body.style.zoom = currentZoomLevel + '%'; document.getElementById('zoomVal').innerText = currentZoomLevel + '%'; }
+        function safeNum(val) { if (val === undefined || val === null || val === '') return 0; if (typeof val === 'string') { let parsed = parseFloat(val.replace(/,/g, '').trim()); return isNaN(parsed) ? 0 : parsed; } return isNaN(val) ? 0 : Number(val); }
+        function formatValue(val) { return (val === 0 || Math.abs(val) < 0.0001) ? '<span class="zero-val">-</span>' : val.toLocaleString(undefined, {minimumFractionDigits:2, maximumFractionDigits:4}); }
+        function formatCurrency(val) { return (val === 0 || Math.abs(val) < 0.0001) ? '<span class="zero-val">-</span>' : '€' + val.toLocaleString(undefined, {minimumFractionDigits:2, maximumFractionDigits:4}); }
+        
+        function formatNetSaving(val) {
+            if (val === 0 || Math.abs(val) < 0.0001) return '<span class="zero-val">-</span>';
+            if (val < 0) return `<span class="badge shortage">-€${Math.abs(val).toLocaleString(undefined, {minimumFractionDigits:2, maximumFractionDigits:4})}</span>`;
+            return `<span class="badge excess">+€${val.toLocaleString(undefined, {minimumFractionDigits:2, maximumFractionDigits:4})}</span>`;
+        }
+
+        function formatProfitPct(val) {
+            if (val === 0 || Math.abs(val) < 0.0001) return '<span class="zero-val">-</span>';
+            if (val < 0) return `<span class="badge shortage">${val.toFixed(2)}%</span>`;
+            return `<span class="badge excess">+${val.toFixed(2)}%</span>`;
+        }
+
+        function switchTab(tabId, element) {
+            document.querySelectorAll('.tab-content').forEach(tc => tc.classList.remove('active'));
+            document.querySelectorAll('.tab-btn').forEach(tb => tb.classList.remove('active'));
+            document.getElementById(tabId).classList.add('active');
+            element.classList.add('active');
+        }
+
+        function toggleBOM(bomId) { let row = document.getElementById(bomId); row.style.display = (row.style.display === "none") ? "table-row" : "none"; }
+        function extractUnitPrice(row) { for (let key in row) { let k = String(key).trim().toLowerCase().replace(/[\s\._-]+/g, ''); if (k === 'uprice' || k === 'unitprice' || k === 'price') { let val = safeNum(row[key]); if (val > 0) return val; } } return 0; }
+
+        async function processFiles() {
+            const files = document.getElementById('fileInput').files;
+            if (files.length === 0) { alert("කරුණාකර ෆයිල් එකක් හෝ කිහිපයක් තෝරන්න!"); return; }
+            document.getElementById('loading').style.display = "block";
+            globalSkuMaster = {}; articleMaster = {}; rawBOMData = []; materialTypeMap = {};
+
+            for (let i = 0; i < files.length; i++) {
+                let file = files[i]; let data = await readFile(file); let workbook = XLSX.read(data, { type: 'array' });
+                let fileSkuMaster = {};
+
+                workbook.SheetNames.forEach(sheetName => {
+                    let sheet = workbook.Sheets[sheetName]; 
+                    
+                    let rowsJSON = XLSX.utils.sheet_to_json(sheet, { defval: "" });
+                    rowsJSON.forEach(row => {
+                        // Extract Material <-> Type mapping from any uploaded file (2-column format or full table)
+                        let matKey = row["Material"] || row["material"] || row["Article"] || row["article"] || row["Item"];
+                        let typeVal = row["Type"] || row["type"] || row["TYPE"];
+                        if (matKey && typeVal) {
+                            let normMat = normalizeMatKey(matKey);
+                            let cleanType = String(typeVal).trim();
+                            if (normMat && cleanType && normMat !== "material" && normMat !== "article") {
+                                materialTypeMap[normMat] = cleanType;
+                            }
+                        }
+
+                        let peggedSku = row["Pegged Requirement"] || row["pegged requirement"] || row["Pegged requirement"];
+                        let matDesc = row["Material Description"] || row["Material"] || row["Item component"];
+                        let reqQ = safeNum(row["Requirement Quantity"] || row["Requirement Qty"]);
+                        let withQ = safeNum(row["Quantity withdrawn"] || row["Qty Withdrawn"]);
+                        let unitP = extractUnitPrice(row);
+
+                        if (peggedSku && matDesc && String(peggedSku).trim() !== "" && !String(peggedSku).toLowerCase().includes("pegged")) {
+                            let skuStr = String(peggedSku).trim().replace(/\s+/g, ' '); let matStr = String(matDesc).trim().replace(/\s+/g, ' ');
+                            if (!fileSkuMaster[skuStr]) fileSkuMaster[skuStr] = { family: getFamilyName(skuStr), style: getStyleName(skuStr), sku: skuStr, orderQty: 0, add5Qty: 0, preEstQty: 0, actualCut: 0, bundleQty: 0, actualShip1st: 0, actualShip2nd: 0, actualShip: 0, bom: [] };
+                            let existingBom = fileSkuMaster[skuStr].bom.find(b => b.material === matStr);
+                            if (existingBom) { existingBom.reqQty += reqQ; existingBom.withdrawn += withQ; if (unitP > 0) existingBom.unitPrice = unitP; }
+                            else fileSkuMaster[skuStr].bom.push({ material: matStr, consumption: 0, cutQty: 0, unitPrice: unitP, reqQty: reqQ, withdrawn: withQ });
+                        }
+                    });
+
+                    let rows2D = XLSX.utils.sheet_to_json(sheet, { header: 1, defval: "" });
+                    let inMatSection = false, inBOMSection = false, inCutQtySection = false, inProdShipSection = false; 
+                    let headers = {};
+
+                    rows2D.forEach((row) => {
+                        if (!row || row.length === 0) return;
+                        let rowStr = row.map(c => String(c).trim().toLowerCase().replace(/[\r\n]+/g, ' ')).join(" ");
+                        if (rowStr === "") return;
+
+                        let isHeaderRow = false;
+
+                        // A. Detect Prod/Ship Header
+                        if ((rowStr.includes("sku") || rowStr.includes("style") || rowStr.includes("material")) && 
+                           (rowStr.includes("orderqty") || rowStr.includes("orderquantity") || rowStr.includes("total sku qty") || rowStr.includes("totalskuqty") || rowStr.includes("1stquality") || rowStr.includes("2ndquality") || rowStr.includes("shipped") || rowStr.includes("bundle"))) {
+                            let tempHeaders = {};
+                            row.forEach((cell, colIdx) => { 
+                                let c = String(cell).toLowerCase().replace(/[^a-z0-9]/g, ''); 
+                                if (c === "sku" || c === "skuno" || c === "material") tempHeaders["sku"] = colIdx; 
+                                else if (c.includes("orderqty") || c.includes("orderquantity") || c.includes("totalskuqty")) tempHeaders["orderQty"] = colIdx;
+                                else if (c.includes("1stquality") || c.includes("shippedqty") || c.includes("deliveredquantity") || c === "actualship") tempHeaders["ship1"] = colIdx;
+                                else if (c.includes("2ndquality") || c === "secondquality") tempHeaders["ship2"] = colIdx;
+                                else if (c.includes("bundleqty") || c.includes("bundlequantity")) tempHeaders["bundleQty"] = colIdx;
+                                else if (c.includes("actualadditionalcutqty") || c === "cutqty" || c === "actualcut" || c === "cuttingqty") tempHeaders["actualCut"] = colIdx;
+                                else if (c.includes("5additional") || c.includes("additionalqty")) tempHeaders["add5Qty"] = colIdx;
+                                else if (c.includes("preest")) tempHeaders["preEstQty"] = colIdx;
+                            });
+                            if (tempHeaders["sku"] !== undefined && (tempHeaders["orderQty"] !== undefined || tempHeaders["ship1"] !== undefined || tempHeaders["ship2"] !== undefined || tempHeaders["actualCut"] !== undefined || tempHeaders["bundleQty"] !== undefined)) { 
+                                headers = tempHeaders;
+                                inProdShipSection = true; inMatSection = false; inBOMSection = false; inCutQtySection = false; isHeaderRow = true; 
+                            }
+                        }
+                        
+                        // B. Detect Cut Qty Section
+                        if (!isHeaderRow && (rowStr.includes("sku") || rowStr.includes("style")) && (rowStr.includes("fabric") || rowStr.includes("material")) && (rowStr.includes("cut qty") || rowStr.includes("cut qtys") || rowStr.includes("cutting"))) {
+                            let tempHeaders = {};
+                            row.forEach((cell, colIdx) => { 
+                                let c = String(cell).toLowerCase().replace(/[^a-z0-9]/g, ''); 
+                                if (c === "sku" || c === "skuno") tempHeaders["sku"] = colIdx; 
+                                else if (c === "fabric" || c === "material" || c === "materialdescription") tempHeaders["material"] = colIdx; 
+                                else if (c === "cutqty" || c === "cuttingqty") tempHeaders["cutQty"] = colIdx; 
+                            });
+                            if (tempHeaders["sku"] !== undefined && tempHeaders["material"] !== undefined && tempHeaders["cutQty"] !== undefined) { 
+                                headers = tempHeaders;
+                                inProdShipSection = false; inMatSection = false; inBOMSection = false; inCutQtySection = true; isHeaderRow = true; 
+                            }
+                        }
+
+                        // C. Detect BOM Section
+                        if (!isHeaderRow && (rowStr.includes("sku") || rowStr.includes("style")) && rowStr.includes("material") && (rowStr.includes("uprice") || rowStr.includes("consumption") || rowStr.includes("scrap") || rowStr.includes("price"))) {
+                            let tempHeaders = {};
+                            row.forEach((cell, colIdx) => { 
+                                let c = String(cell).toLowerCase().replace(/[^a-z0-9]/g, ''); 
+                                if (c === "sku" || c === "skuno") tempHeaders["sku"] = colIdx; 
+                                else if (c === "material" || c === "fabric" || c === "materialdescription") tempHeaders["material"] = colIdx; 
+                                else if (c === "uprice" || c === "unitprice" || c === "price") tempHeaders["unitPrice"] = colIdx; 
+                                else if (c === "conscrap" || c === "consumption" || c === "con") tempHeaders["conScrap"] = colIdx; 
+                            });
+                            if(tempHeaders["sku"] !== undefined && tempHeaders["material"] !== undefined && (tempHeaders["conScrap"] !== undefined || tempHeaders["unitPrice"] !== undefined)) { 
+                                headers = tempHeaders;
+                                inProdShipSection = false; inMatSection = false; inBOMSection = true; inCutQtySection = false; isHeaderRow = true; 
+                            }
+                        }
+
+                        // D. Detect Material Section
+                        if (!isHeaderRow && (rowStr.includes("article") || rowStr.includes("material") || rowStr.includes("item")) && (rowStr.includes("reqmnt") || rowStr.includes("total req") || rowStr.includes("withdrawn") || rowStr.includes("shortage") || rowStr.includes("qty") || rowStr.includes("cutting provide") || rowStr.includes("planing") || rowStr.includes("re order") || rowStr.includes("type"))) {
+                            let tempHeaders = {};
+                            row.forEach((cell, colIdx) => { 
+                                let c = String(cell).toLowerCase().replace(/[^a-z0-9]/g, ''); 
+                                if (c.includes("article") || c.includes("material") || c === "item" || c === "component") tempHeaders["article"] = colIdx; 
+                                else if (c.includes("type")) tempHeaders["type"] = colIdx; 
+                                else if (c.includes("uprice") || c.includes("unitprice") || c === "price") tempHeaders["unitPrice"] = colIdx; 
+                                else if (c.includes("excessstockvalue") || c.includes("valuelkr") || c.includes("valueusd") || c.includes("value")) tempHeaders["excessStockValue"] = colIdx; 
+                                else if (c.includes("excessstock") || c === "excess") tempHeaders["excessStock"] = colIdx; 
+                                else if (c.includes("additionalreq") || c.includes("totalreq") || c.includes("addreq")) tempHeaders["totalReq"] = colIdx; 
+                                else if (c.includes("addcutting") || c.includes("cutprovide") || c.includes("cuttingprovide")) tempHeaders["cutProvide"] = colIdx; 
+                                else if (c === "scrap" || c.includes("scrapqty")) tempHeaders["scrap"] = colIdx; 
+                                else if (c.includes("addplan") || c.includes("planprovide") || c.includes("planingpr") || c.includes("planningpr")) tempHeaders["planProvide"] = colIdx; 
+                                else if (c.includes("reorder") || c.includes("planingre") || c.includes("planningre")) tempHeaders["reorder"] = colIdx; 
+                                else if (c.includes("reqqty") || c.includes("requirementq") || c.includes("reqmnt")) tempHeaders["reqQty"] = colIdx; 
+                                else if (c.includes("shortage")) tempHeaders["shortage"] = colIdx; 
+                                else if (c.includes("withdrawn") || c.includes("qtywithdrawn")) tempHeaders["withdrawn"] = colIdx; 
+                            });
+                            
+                            if(tempHeaders["article"] !== undefined) { 
+                                headers = tempHeaders;
+                                inProdShipSection = false; inMatSection = true; inBOMSection = false; inCutQtySection = false; isHeaderRow = true; 
+                            }
+                        }
+
+                        if (isHeaderRow) return;
+
+                        // E. Extract Data
+                        if (inProdShipSection) {
+                            if (String(row[0]).trim().toLowerCase().includes("total") || !row[headers["sku"]]) return;
+                            let skuStr = String(row[headers["sku"]]).trim().replace(/\s+/g, ' ');
+                            if (skuStr && skuStr !== "0" && !skuStr.toLowerCase().includes("total") && skuStr !== "undefined") {
+                                if (!fileSkuMaster[skuStr]) fileSkuMaster[skuStr] = { family: getFamilyName(skuStr), style: getStyleName(skuStr), sku: skuStr, orderQty: 0, add5Qty: 0, preEstQty: 0, actualCut: 0, bundleQty: 0, actualShip1st: 0, actualShip2nd: 0, actualShip: 0, bom: [] };
+                                
+                                if (headers["orderQty"] !== undefined) fileSkuMaster[skuStr].orderQty += safeNum(row[headers["orderQty"]]);
+                                if (headers["add5Qty"] !== undefined) fileSkuMaster[skuStr].add5Qty += safeNum(row[headers["add5Qty"]]);
+                                if (headers["preEstQty"] !== undefined) fileSkuMaster[skuStr].preEstQty += safeNum(row[headers["preEstQty"]]);
+                                if (headers["actualCut"] !== undefined) fileSkuMaster[skuStr].actualCut += safeNum(row[headers["actualCut"]]);
+                                if (headers["bundleQty"] !== undefined) fileSkuMaster[skuStr].bundleQty += safeNum(row[headers["bundleQty"]]);
+                                
+                                let s1 = headers["ship1"] !== undefined ? safeNum(row[headers["ship1"]]) : 0;
+                                let s2 = headers["ship2"] !== undefined ? safeNum(row[headers["ship2"]]) : 0;
+                                fileSkuMaster[skuStr].actualShip1st += s1;
+                                fileSkuMaster[skuStr].actualShip2nd += s2;
+                                fileSkuMaster[skuStr].actualShip += (s1 + s2);
+                            }
+                        }
+                        
+                        if (inCutQtySection) { 
+                            if (String(row[0]).trim().toLowerCase().includes("total") || !row[headers["sku"]] || !row[headers["material"]]) return; 
+                            let skuStr = String(row[headers["sku"]]).trim().replace(/\s+/g, ' '); 
+                            let matStr = String(row[headers["material"]]).trim().replace(/\s+/g, ' '); 
+                            let cutVal = safeNum(row[headers["cutQty"]]); 
+                            if (skuStr && matStr && skuStr !== "0" && !skuStr.toLowerCase().includes("total")) { 
+                                if (!fileSkuMaster[skuStr]) fileSkuMaster[skuStr] = { family: getFamilyName(skuStr), style: getStyleName(skuStr), sku: skuStr, orderQty: 0, add5Qty: 0, preEstQty: 0, actualCut: 0, bundleQty: 0, actualShip1st: 0, actualShip2nd: 0, actualShip: 0, bom: [] }; 
+                                fileSkuMaster[skuStr].actualCut = Math.max(fileSkuMaster[skuStr].actualCut || 0, cutVal);
+
+                                let existing = fileSkuMaster[skuStr].bom.find(b => b.material === matStr); 
+                                if (existing) existing.cutQty = cutVal; 
+                                else fileSkuMaster[skuStr].bom.push({ material: matStr, consumption: 0, cutQty: cutVal, unitPrice: 0, reqQty: 0, withdrawn: 0 }); 
+                            } 
+                        }
+                        
+                        if (inBOMSection) { 
+                            if (String(row[0]).trim().toLowerCase().includes("total") || !row[headers["sku"]] || !row[headers["material"]]) return; 
+                            let skuStr = String(row[headers["sku"]]).trim().replace(/\s+/g, ' '); 
+                            let matStr = String(row[headers["material"]]).trim().replace(/\s+/g, ' '); 
+                            let consVal = headers["conScrap"] !== undefined ? safeNum(row[headers["conScrap"]]) : 0; 
+                            let unitP = headers["unitPrice"] !== undefined ? safeNum(row[headers["unitPrice"]]) : 0; 
+                            if (skuStr && matStr && skuStr !== "0" && !skuStr.toLowerCase().includes("total")) { 
+                                rawBOMData.push({ sku: skuStr, material: matStr, consumption: consVal, unitPrice: unitP }); 
+                            } 
+                        }
+                        
+                        if (inMatSection) { 
+                            if (String(row[0]).trim().toLowerCase().includes("total") || !row[headers["article"]]) return; 
+                            let articleStr = String(row[headers["article"]]).trim().replace(/\s+/g, ' '); 
+                            if (articleStr && articleStr !== "0" && !articleStr.toLowerCase().includes("total")) { 
+                                if (!articleMaster[articleStr]) { articleMaster[articleStr] = { article: articleStr, type: "", unitPrice: 0, excessStock: 0, excessStockValue: 0, totalReq: 0, cutProvide: 0, scrap: 0, planProvide: 0, reorder: 0, reqQty: 0, shortage: 0, withdrawn: 0 }; } 
+                                let am = articleMaster[articleStr]; 
+                                if (headers["type"] !== undefined && row[headers["type"]]) am.type = String(row[headers["type"]]).trim(); 
+                                if (headers["unitPrice"] !== undefined) { let p = safeNum(row[headers["unitPrice"]]); if (p > 0) am.unitPrice = p; } 
+                                
+                                if (headers["excessStock"] !== undefined) {
+                                    let currentStock = safeNum(row[headers["excessStock"]]);
+                                    if (currentStock > 0) {
+                                        am.excessStock = Math.max(am.excessStock, currentStock);
+                                    }
+                                }
+
+                                if (headers["totalReq"] !== undefined) am.totalReq += safeNum(row[headers["totalReq"]]); 
+                                if (headers["cutProvide"] !== undefined) am.cutProvide += safeNum(row[headers["cutProvide"]]); 
+                                if (headers["scrap"] !== undefined) am.scrap += safeNum(row[headers["scrap"]]); 
+                                if (headers["planProvide"] !== undefined) am.planProvide += safeNum(row[headers["planProvide"]]); 
+                                if (headers["reorder"] !== undefined) am.reorder += safeNum(row[headers["reorder"]]); 
+                                if (headers["reqQty"] !== undefined) am.reqQty += safeNum(row[headers["reqQty"]]); 
+                                if (headers["shortage"] !== undefined) am.shortage += safeNum(row[headers["shortage"]]); 
+                                if (headers["withdrawn"] !== undefined) am.withdrawn += safeNum(row[headers["withdrawn"]]); 
+                            } 
+                        }
+                    });
+                });
+
+                // Merge File Data to Global Data
+                for (let sku in fileSkuMaster) {
+                    if (!globalSkuMaster[sku]) globalSkuMaster[sku] = fileSkuMaster[sku];
+                    else {
+                        globalSkuMaster[sku].orderQty = Math.max(globalSkuMaster[sku].orderQty, fileSkuMaster[sku].orderQty);
+                        globalSkuMaster[sku].add5Qty = Math.max(globalSkuMaster[sku].add5Qty, fileSkuMaster[sku].add5Qty);
+                        globalSkuMaster[sku].preEstQty = Math.max(globalSkuMaster[sku].preEstQty, fileSkuMaster[sku].preEstQty);
+                        globalSkuMaster[sku].actualCut = Math.max(globalSkuMaster[sku].actualCut, fileSkuMaster[sku].actualCut);
+                        globalSkuMaster[sku].bundleQty = Math.max(globalSkuMaster[sku].bundleQty || 0, fileSkuMaster[sku].bundleQty || 0);
+                        globalSkuMaster[sku].actualShip1st = Math.max(globalSkuMaster[sku].actualShip1st || 0, fileSkuMaster[sku].actualShip1st || 0);
+                        globalSkuMaster[sku].actualShip2nd = Math.max(globalSkuMaster[sku].actualShip2nd || 0, fileSkuMaster[sku].actualShip2nd || 0);
+                        globalSkuMaster[sku].actualShip = Math.max(globalSkuMaster[sku].actualShip || 0, fileSkuMaster[sku].actualShip || 0);
+                        if (fileSkuMaster[sku].bom && fileSkuMaster[sku].bom.length > 0) {
+                            if (!globalSkuMaster[sku].bom) globalSkuMaster[sku].bom = [];
+                            fileSkuMaster[sku].bom.forEach(fb => {
+                                let gb = globalSkuMaster[sku].bom.find(b => b.material === fb.material);
+                                if (gb) { gb.reqQty = (gb.reqQty || 0) + (fb.reqQty || 0); gb.withdrawn = (gb.withdrawn || 0) + (fb.withdrawn || 0); if (fb.cutQty) gb.cutQty = fb.cutQty; if (fb.consumption) gb.consumption = fb.consumption; if (fb.unitPrice > 0) gb.unitPrice = fb.unitPrice; } else globalSkuMaster[sku].bom.push({...fb});
+                            });
+                        }
+                    }
+                }
+            }
+
+            rawBOMData.forEach(b => {
+                if(globalSkuMaster[b.sku]) {
+                    if(!globalSkuMaster[b.sku].bom) globalSkuMaster[b.sku].bom = [];
+                    let existing = globalSkuMaster[b.sku].bom.find(item => item.material === b.material);
+                    if (existing) { existing.consumption = b.consumption; if (b.unitPrice > 0) existing.unitPrice = b.unitPrice; } else globalSkuMaster[b.sku].bom.push({ material: b.material, consumption: b.consumption, cutQty: 0, unitPrice: b.unitPrice, reqQty: 0, withdrawn: 0 });
+                }
+                if (b.material && b.unitPrice > 0) {
+                    let matKey = String(b.material).trim();
+                    if (!articleMaster[matKey]) { 
+                        articleMaster[matKey] = { article: matKey, type: "", unitPrice: b.unitPrice, excessStock: 0, excessStockValue: 0, totalReq: 0, cutProvide: 0, scrap: 0, planProvide: 0, reorder: 0, reqQty: 0, shortage: 0, withdrawn: 0 }; 
+                    } else if (!articleMaster[matKey].unitPrice || articleMaster[matKey].unitPrice === 0) {
+                        articleMaster[matKey].unitPrice = b.unitPrice;
+                    }
+                }
+            });
+
+            // Auto Map Type using normalized key lookup across ALL sheets
+            for (let matKey in articleMaster) {
+                let norm = normalizeMatKey(matKey);
+                if (materialTypeMap[norm]) {
+                    articleMaster[matKey].type = materialTypeMap[norm];
+                }
+            }
+
+            globalProductionData = Object.values(globalSkuMaster);
+            globalMaterialData = Object.values(articleMaster);
+
+            calculateSavingsAndKPIs();
+
+            renderProductionTable();
+            renderMaterialTable();
+            document.getElementById('loading').style.display = "none";
+        }
+
+        // Calculation Function with Normalized Key Lookup, Auto Excess, Total Order Value & Additional Profit %
+        function calculateSavingsAndKPIs() {
+            let totalOrderQtySum = 0;
+            let totalShippedQtySum = 0;
+            let totalSavingsSum = 0;
+            let totalOrderValueSum = 0;
+
+            globalProductionData.forEach(skuItem => {
+                totalOrderQtySum += skuItem.orderQty || 0;
+                totalShippedQtySum += skuItem.actualShip || 0;
+                
+                let varianceShip = (skuItem.actualShip || 0) - (skuItem.orderQty || 0);
+                let skuSaving = 0;
+                let skuOrderValue = 0;
+                
+                if (skuItem.bom && skuItem.bom.length > 0) {
+                    skuItem.bom.forEach(bom => {
+                        let uPrice = bom.unitPrice || 0;
+                        let withdrawn = bom.withdrawn || 0;
+                        let cutQty = bom.cutQty > 0 ? bom.cutQty : skuItem.actualCut;
+                        
+                        let actualCon = (cutQty > 0 && withdrawn > 0) ? (withdrawn / cutQty) : (bom.consumption || 0);
+                        let matSaving = (uPrice > 0) ? (actualCon * varianceShip * uPrice) : 0;
+                        let matOrderVal = (uPrice > 0) ? (actualCon * (skuItem.actualShip || 0) * uPrice) : 0;
+                        
+                        bom.saving = matSaving;
+                        bom.orderValue = matOrderVal;
+                        skuSaving += matSaving;
+                        skuOrderValue += matOrderVal;
+                    });
+                }
+                skuItem.savings = skuSaving;
+                skuItem.totalOrderValue = skuOrderValue;
+                totalOrderValueSum += skuOrderValue;
+                
+                if (skuSaving > 0) {
+                    totalSavingsSum += skuSaving;
+                }
+            });
+
+            globalMaterialData.forEach(mat => {
+                let norm = normalizeMatKey(mat.article);
+                if (materialTypeMap[norm]) {
+                    mat.type = materialTypeMap[norm];
+                }
+
+                // Fallback Unit Price from BOM if missing
+                if (!mat.unitPrice || mat.unitPrice === 0) {
+                    for (let sku in globalSkuMaster) {
+                        if (globalSkuMaster[sku].bom) {
+                            let bomMatch = globalSkuMaster[sku].bom.find(b => normalizeMatKey(b.material) === norm);
+                            if (bomMatch && bomMatch.unitPrice > 0) {
+                                mat.unitPrice = bomMatch.unitPrice;
+                                break;
+                            }
+                        }
+                    }
+                }
+
+                // Automatic Excess Stock calculation if explicit excessStock column was empty
+                if (!mat.excessStock || mat.excessStock === 0) {
+                    if (mat.withdrawn > mat.reqQty && mat.reqQty > 0) {
+                        mat.excessStock = mat.withdrawn - mat.reqQty;
+                    }
+                }
+
+                mat.excessStockValue = (mat.excessStock || 0) * (mat.unitPrice || 0);
+            });
+
+            // Excess Stock Value calculation specifically for "Unique" items
+            let totalExcessValueSum = globalMaterialData.reduce((acc, curr) => {
+                let matType = curr.type ? String(curr.type).trim().toLowerCase() : '';
+                let isUnique = matType === 'unique';
+                return isUnique ? acc + (curr.excessStockValue || 0) : acc;
+            }, 0);
+
+            let additionalProfitPct = totalOrderValueSum > 0 ? (totalSavingsSum / totalOrderValueSum) * 100 : 0;
+
+            let elOrder = document.getElementById('kpi-total-order');
+            if (elOrder) elOrder.innerText = totalOrderQtySum.toLocaleString();
+
+            let elShipped = document.getElementById('kpi-total-shipped');
+            if (elShipped) elShipped.innerText = totalShippedQtySum.toLocaleString();
+
+            let elOrderVal = document.getElementById('kpi-total-order-value');
+            if (elOrderVal) elOrderVal.innerText = '€' + totalOrderValueSum.toLocaleString(undefined, {minimumFractionDigits:2, maximumFractionDigits:2});
+
+            let elSaving = document.getElementById('kpi-total-saving');
+            if (elSaving) {
+                elSaving.innerHTML = '+€' + totalSavingsSum.toLocaleString(undefined, {minimumFractionDigits:2, maximumFractionDigits:2});
+                elSaving.style.color = 'var(--success)';
+            }
+
+            let elProfitPct = document.getElementById('kpi-profit-pct');
+            if (elProfitPct) {
+                elProfitPct.innerText = additionalProfitPct.toFixed(2) + '%';
+                elProfitPct.style.color = additionalProfitPct > 0 ? 'var(--success)' : 'var(--text-main)';
+            }
+
+            let elExcess = document.getElementById('kpi-excess-value');
+            if (elExcess) elExcess.innerText = '€' + totalExcessValueSum.toLocaleString(undefined, {minimumFractionDigits:2, maximumFractionDigits:2});
+        }
+
+        function readFile(file) { return new Promise((resolve, reject) => { let reader = new FileReader(); reader.onload = e => resolve(new Uint8Array(e.target.result)); reader.onerror = reject; reader.readAsArrayBuffer(file); }); }
+        function getFamilyName(sku) { if(typeof sku === 'string' && sku.includes("2592")) return "Family 2592"; return "General Family"; }
+        function getStyleName(sku) { if(typeof sku === 'string') return `Style ${sku.split(" ")[0]}` || "General Style"; return "General Style"; }
+
+        function aggregateData(data, level) {
+            let result = {};
+            data.forEach(item => {
+                let key = item[level];
+                if (!result[key]) result[key] = { orderQty: 0, add5Qty: 0, preEstQty: 0, actualCut: 0, bundleQty: 0, actualShip1st: 0, actualShip2nd: 0, actualShip: 0, totalOrderValue: 0, savings: 0 };
+                result[key].orderQty += item.orderQty;
+                result[key].add5Qty += item.add5Qty;
+                result[key].preEstQty += item.preEstQty;
+                result[key].actualCut += item.actualCut;
+                result[key].bundleQty += (item.bundleQty || 0);
+                result[key].actualShip1st += (item.actualShip1st || 0);
+                result[key].actualShip2nd += (item.actualShip2nd || 0);
+                result[key].actualShip += (item.actualShip || 0);
+                result[key].totalOrderValue += (item.totalOrderValue || 0);
+                result[key].savings += (item.savings || 0); 
+            });
+            return result;
+        }
+
+        function calculateMetrics(item) {
+            let varianceQty = item.actualShip - item.orderQty;
+            let variancePct = item.orderQty > 0 ? (varianceQty / item.orderQty) * 100 : 0;
+            let actualAddCut = item.actualCut - item.orderQty;
+            let varianceBundleShip = item.actualShip - (item.bundleQty || 0);
+            let totalOrderVal = item.totalOrderValue || 0;
+            let profitPct = totalOrderVal > 0 ? ((item.savings || 0) / totalOrderVal) * 100 : 0;
+            return { varianceQty, variancePct, actualAddCut, varianceBundleShip, profitPct, ...item };
+        }
+
+        function formatProductionRow(title, metrics, rowClass) {
+            let varColorClass = metrics.varianceQty >= 0 ? 'excess' : 'shortage';
+            let addCutColorClass = metrics.actualAddCut > 0 ? 'excess' : (metrics.actualAddCut < 0 ? 'shortage' : 'zero-val');
+            let bundleVarColorClass = metrics.varianceBundleShip >= 0 ? 'excess' : 'shortage';
+            
+            return `
+                <tr class="${rowClass}">
+                    <td>${title}</td>
+                    <td>${metrics.orderQty.toLocaleString()}</td>
+                    <td>${metrics.add5Qty.toLocaleString()}</td>
+                    <td>${metrics.preEstQty.toLocaleString()}</td>
+                    <td>${metrics.actualCut.toLocaleString()}</td>
+                    <td><span class="badge ${addCutColorClass}">${metrics.actualAddCut > 0 ? '+' : ''}${metrics.actualAddCut.toLocaleString()}</span></td>
+                    <td>${(metrics.bundleQty || 0).toLocaleString()}</td>
+                    <td>${(metrics.actualShip1st || 0).toLocaleString()}</td>
+                    <td style="color:#d97706; font-weight:bold;">${(metrics.actualShip2nd || 0).toLocaleString()}</td>
+                    <td style="font-weight: bold;">${metrics.actualShip.toLocaleString()}</td>
+                    <td><span class="badge ${bundleVarColorClass}">${metrics.varianceBundleShip > 0 ? '+' : ''}${metrics.varianceBundleShip.toLocaleString()}</span></td>
+                    <td><span class="badge ${varColorClass}">${metrics.varianceQty > 0 ? '+' : ''}${metrics.varianceQty.toLocaleString()}</span></td>
+                    <td><span class="badge ${varColorClass}">${metrics.varianceQty > 0 ? '+' : ''}${metrics.variancePct.toFixed(2)}%</span></td>
+                    <td style="background:#f0f9ff; font-weight:bold; color:#0369a1;">${formatCurrency(metrics.totalOrderValue || 0)}</td>
+                    <td style="background:#f8fafc;">${formatNetSaving(metrics.savings)}</td>
+                    <td style="background:#f0fdf4;">${formatProfitPct(metrics.profitPct || 0)}</td>
+                </tr>
+            `;
+        }
+
+        function renderProductionTable() {
+            const tbody = document.getElementById('productionTableBody');
+            if (!tbody) return;
+            const viewLevelEl = document.getElementById('viewLevel');
+            const viewLevel = viewLevelEl ? viewLevelEl.value : 'family';
+            tbody.innerHTML = '';
+            if (globalProductionData.length === 0) { tbody.innerHTML = '<tr><td colspan="16" class="text-center" style="padding:20px;">No data found.</td></tr>'; return; }
+
+            const familyData = aggregateData(globalProductionData, 'family');
+            let skuIndexCounter = 0; 
+
+            for (const [family, fMetrics] of Object.entries(familyData)) {
+                if (fMetrics.orderQty <= 0 && (!globalProductionData.some(d => d.family === family && d.bom && d.bom.length > 0))) continue;
+                if (viewLevel === 'family') { tbody.innerHTML += formatProductionRow(`<i class="fa-solid fa-layer-group"></i> ${family}`, calculateMetrics(fMetrics), 'level-family'); continue; }
+                
+                tbody.innerHTML += formatProductionRow(`<i class="fa-solid fa-layer-group"></i> ${family}`, calculateMetrics(fMetrics), 'level-family');
+                const stylesInFamily = globalProductionData.filter(d => d.family === family);
+                const styleData = aggregateData(stylesInFamily, 'style');
+
+                for (const [style, sMetrics] of Object.entries(styleData)) {
+                    if (viewLevel === 'style') { tbody.innerHTML += formatProductionRow(`&nbsp;&nbsp;↳ <i class="fa-solid fa-shirt"></i> ${style}`, calculateMetrics(sMetrics), 'level-style'); continue; }
+
+                    tbody.innerHTML += formatProductionRow(`&nbsp;&nbsp;↳ <i class="fa-solid fa-shirt"></i> ${style}`, calculateMetrics(sMetrics), 'level-style');
+                    const skusInStyle = stylesInFamily.filter(d => d.style === style);
+                    
+                    skusInStyle.forEach(skuItem => {
+                        skuIndexCounter++;
+                        let bomId = `bom-row-${skuIndexCounter}`;
+                        let hasBom = skuItem.bom && skuItem.bom.length > 0;
+                        let titleDisplay = `&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;↳ <i class="fa-solid fa-barcode"></i> ${skuItem.sku}`;
+                        
+                        if (hasBom) titleDisplay += ` <button class="btn-bom" onclick="toggleBOM('${bomId}')"><i class="fa-solid fa-list-check"></i> BOM Materials</button>`;
+                        tbody.innerHTML += formatProductionRow(titleDisplay, calculateMetrics(skuItem), 'level-sku');
+
+                        if (hasBom) {
+                            skuItem.bom.sort((a, b) => (b.unitPrice || 0) - (a.unitPrice || 0));
+                            let bomHTML = `
+                                <tr id="${bomId}" style="display:none; background-color: #f8fafc;">
+                                    <td colspan="16" style="padding: 10px 15px 10px 35px;">
+                                        <div style="border:1px solid #c7d2fe; border-radius:8px; overflow:hidden;">
+                                        <table style="width: 100%; background: #fff; margin: 0;">
+                                            <thead style="background: #e0e7ff; font-size: 11px;">
+                                                <tr>
+                                                    <th class="text-left" style="padding: 6px 10px;">Material / Description</th>
+                                                    <th class="text-center" style="padding: 6px 10px; color: #6b21a8; background:#f3e8ff;">U Price (€)</th>
+                                                    <th class="text-center" style="padding: 6px 10px;">Con + Scrap</th>
+                                                    <th style="padding: 6px 10px; color: #d97706;">Cutting Qty</th>
+                                                    <th style="padding: 6px 10px; color: #7c3aed;">Actual Con (Withdraw / Cut)</th>
+                                                    <th style="padding: 6px 10px; color: #2563eb;">Order Req (Order × Con)</th>
+                                                    <th style="padding: 6px 10px; color: #d97706;">SAP Req Qty</th>
+                                                    <th style="padding: 6px 10px; color: #059669;">Qty Withdrawn</th>
+                                                    <th style="padding: 6px 10px; color: #dc2626;">Variance (SAP Req - Withdrawn)</th>
+                                                    <th style="padding: 6px 10px; color: #0369a1; background:#e0f2fe;">Shipped Order Value (€)</th>
+                                                    <th style="padding: 6px 10px; color: #1e1b4b; background:#e0e7ff;">Net Saving / Loss (€)</th>
+                                                </tr>
+                                            </thead>
+                                            <tbody>`;
+                            
+                            skuItem.bom.forEach(bom => {
+                                let orderQty = skuItem.orderQty || 0;
+                                let con = bom.consumption || 0;
+                                let cutQty = bom.cutQty > 0 ? bom.cutQty : skuItem.actualCut;
+                                let withdrawn = bom.withdrawn || 0;
+                                let uPrice = bom.unitPrice || 0;
+
+                                let actualCon = (cutQty > 0 && withdrawn > 0) ? (withdrawn / cutQty) : con;
+                                let orderReqQty = orderQty * con;
+                                let sapReqQty = bom.reqQty > 0 ? bom.reqQty : orderReqQty;
+                                let variance = sapReqQty - withdrawn;
+                                let varColor = variance >= 0 ? 'color:#059669;' : 'color:#dc2626;';
+
+                                bomHTML += `
+                                    <tr style="border-bottom: 1px solid #f1f5f9;">
+                                        <td class="text-left" style="padding: 6px 10px; font-size:11px;">${bom.material}</td>
+                                        <td class="text-center" style="padding: 6px 10px; font-size:11px; font-weight:bold; color:#6b21a8; background:#faf5ff;">${uPrice > 0 ? formatCurrency(uPrice) : '<span class="zero-val">-</span>'}</td>
+                                        <td class="text-center" style="padding: 6px 10px; font-size:11px; font-weight:bold; color:#475569;">${formatValue(con)}</td>
+                                        <td style="padding: 6px 10px; font-size:11px; color:#d97706; font-weight:bold;">${cutQty > 0 ? cutQty.toLocaleString() : '-'}</td>
+                                        <td style="padding: 6px 10px; font-size:11px; color:#7c3aed; font-weight:bold;">${formatValue(actualCon)}</td>
+                                        <td style="padding: 6px 10px; font-size:11px; color:#2563eb; font-weight:bold;">${formatValue(orderReqQty)}</td>
+                                        <td style="padding: 6px 10px; font-size:11px; color:#d97706; font-weight:bold;">${formatValue(sapReqQty)}</td>
+                                        <td style="padding: 6px 10px; font-size:11px; color:#059669; font-weight:bold;">${formatValue(withdrawn)}</td>
+                                        <td style="padding: 6px 10px; font-size:11px; font-weight:bold; ${varColor}">${formatValue(variance)}</td>
+                                        <td style="padding: 6px 10px; font-size:11px; font-weight:bold; color:#0369a1; background:#f0f9ff;">${formatCurrency(bom.orderValue || 0)}</td>
+                                        <td style="padding: 6px 10px; font-size:11px; font-weight:bold; background:#f8fafc;">${formatNetSaving(bom.saving)}</td>
+                                    </tr>`;
+                            });
+                            
+                            bomHTML += `</tbody></table></div></td></tr>`;
+                            tbody.innerHTML += bomHTML;
+                        }
+                    });
+                }
+            }
+        }
+
+        function renderMaterialTable() {
+            const tbody = document.getElementById('materialTableBody');
+            if (!tbody) return;
+            tbody.innerHTML = '';
+            if (globalMaterialData.length === 0) { tbody.innerHTML = '<tr><td colspan="15" class="text-center" style="padding:20px;">No data found.</td></tr>'; return; }
+
+            globalMaterialData.sort((a, b) => { let priceA = a.unitPrice || 0; let priceB = b.unitPrice || 0; if (priceB !== priceA) return priceB - priceA; return a.article.localeCompare(b.article); });
+
+            globalMaterialData.forEach(mat => {
+                let variance = mat.reqQty - mat.withdrawn;
+                let varPct = mat.reqQty > 0 ? (variance / mat.reqQty) * 100 : 0;
+                let varColorClass = variance >= 0 ? 'excess' : 'shortage';
+
+                let rowHTML = `
+                    <tr class="mat-row">
+                        <td class="text-left">${mat.article}</td>
+                        <td class="text-center">${mat.type || '<span class="zero-val">-</span>'}</td>
+                        <td style="background:#faf5ff; font-weight:bold; color:#6b21a8;">${mat.unitPrice > 0 ? formatCurrency(mat.unitPrice) : '<span class="zero-val">-</span>'}</td>
+                        <td>${formatValue(mat.totalReq)}</td>
+                        <td>${formatValue(mat.cutProvide)}</td>
+                        <td>${formatValue(mat.scrap)}</td>
+                        <td>${formatValue(mat.planProvide)}</td>
+                        <td>${formatValue(mat.reorder)}</td>
+                        <td>${formatValue(mat.reqQty)}</td>
+                        <td>${formatValue(mat.shortage)}</td>
+                        <td style="font-weight:bold;">${formatValue(mat.withdrawn)}</td>
+                        <td style="background:#fefce8;"><span class="badge ${variance === 0 ? 'zero-val' : varColorClass}">${variance > 0 ? '+' : ''}${formatValue(variance)}</span></td>
+                        <td style="background:#fefce8;"><span class="badge ${variance === 0 ? 'zero-val' : varColorClass}">${variance === 0 ? '<span class="zero-val">-</span>' : (variance > 0 ? '+' : '') + varPct.toFixed(2) + '%'}</span></td>
+                        <td style="background:#f0f9ff; font-weight:bold; color:#0369a1;">${formatValue(mat.excessStock)}</td>
+                        <td style="background:#f0f9ff; font-weight:bold; color:#0369a1;">${formatCurrency(mat.excessStockValue)}</td>
+                    </tr>
+                `;
+                tbody.innerHTML += rowHTML;
+            });
+        }
+
+        function filterArticleTable() { let input = document.getElementById("articleSearch").value.toLowerCase(); let rows = document.querySelectorAll("#materialTableBody .mat-row"); rows.forEach(row => { let rowText = row.innerText.toLowerCase(); if (rowText.includes(input)) row.style.display = ""; else row.style.display = "none"; }); }
+
+        function exportToExcel() {
+            if (globalProductionData.length === 0 && globalMaterialData.length === 0) { alert("No data available! Please process the files first."); return; }
+            let wb = XLSX.utils.book_new();
+            let prodExportData = [];
+            globalProductionData.forEach(item => { 
+                let orderVal = item.totalOrderValue || 0;
+                let profitPct = orderVal > 0 ? Number((((item.savings || 0) / orderVal) * 100).toFixed(2)) : 0;
+                prodExportData.push({ 
+                    "Family": item.family, 
+                    "Style": item.style, 
+                    "SKU": item.sku, 
+                    "Order Qty": item.orderQty, 
+                    "5% Additional Qty": item.add5Qty, 
+                    "Pre Estimated Qty": item.preEstQty, 
+                    "Actual Cutting": item.actualCut, 
+                    "Actual Additional Cut": item.actualCut - item.orderQty, 
+                    "Bundle Qty": item.bundleQty || 0,
+                    "1st Quality Ship": item.actualShip1st || 0,
+                    "2nd Quality Ship": item.actualShip2nd || 0,
+                    "Total Ship": item.actualShip, 
+                    "Variance (Ship - Bundle)": item.actualShip - (item.bundleQty || 0),
+                    "Variance (Ship - Order)": item.actualShip - item.orderQty,
+                    "Total Order Value (€)": orderVal,
+                    "Actual Net Saving / Loss (€)": item.savings || 0,
+                    "Additional Profit %": profitPct
+                }); 
+            });
+            let wsProd = XLSX.utils.json_to_sheet(prodExportData);
+            XLSX.utils.book_append_sheet(wb, wsProd, "Production Summary");
+
+            let matExportData = [];
+            globalMaterialData.forEach(mat => { 
+                matExportData.push({ 
+                    "Article / Material": mat.article, 
+                    "Type": mat.type, 
+                    "Unit Price (€)": mat.unitPrice, 
+                    "Additional Reqmnt": mat.totalReq, 
+                    "Add Cutting Provide": mat.cutProvide, 
+                    "Scrap": mat.scrap, 
+                    "Add Planing Provide": mat.planProvide, 
+                    "Planning Re order": mat.reorder, 
+                    "Requirement Qty": mat.reqQty, 
+                    "Shortage": mat.shortage, 
+                    "Qty Withdrawn": mat.withdrawn, 
+                    "Variance (Req - Withdraw)": mat.reqQty - mat.withdrawn, 
+                    "Excess Stock": mat.excessStock, 
+                    "Excess Stock Value (€)": mat.excessStockValue 
+                }); 
+            });
+            let wsMat = XLSX.utils.json_to_sheet(matExportData);
+            XLSX.utils.book_append_sheet(wb, wsMat, "Material Requirement");
+
+            let bomExportData = [];
+            globalProductionData.forEach(sku => {
+                if(sku.bom && sku.bom.length > 0) {
+                    sku.bom.forEach(b => {
+                        let orderQty = sku.orderQty || 0; let con = b.consumption || 0; let cutQty = b.cutQty > 0 ? b.cutQty : sku.actualCut; let withdrawn = b.withdrawn || 0; let actualCon = (cutQty > 0 && withdrawn > 0) ? (withdrawn / cutQty) : con; let orderReqQty = orderQty * con; let sapReqQty = b.reqQty > 0 ? b.reqQty : orderReqQty;
+                        bomExportData.push({
+                            "SKU": sku.sku, "Material": b.material, "U Price (€)": b.unitPrice || 0, "Con + Scrap": con, "Cutting Qty": cutQty, "Actual Con": actualCon, "Order Req": orderReqQty, "SAP Req Qty": sapReqQty, "Qty Withdrawn": withdrawn, "Variance": sapReqQty - withdrawn, "Shipped Order Value (€)": b.orderValue || 0, "Net Saving (€)": b.saving || 0
+                        });
+                    });
+                }
+            });
+            if(bomExportData.length > 0) {
+                let wsBom = XLSX.utils.json_to_sheet(bomExportData);
+                XLSX.utils.book_append_sheet(wb, wsBom, "BOM Details");
+            }
+            XLSX.writeFile(wb, "Production_Material_Dashboard_Export.xlsx");
+        }
+
+        function exportToHTML() {
+            if (globalProductionData.length === 0 && globalMaterialData.length === 0) { 
+                alert("No data available! Please process the files first."); 
+                return; 
+            }
+            let docClone = document.documentElement.cloneNode(true);
+            let uploadArea = docClone.querySelector('#upload-section');
+            if (uploadArea) uploadArea.remove();
+            let procBtn = docClone.querySelector('.process-btn');
+            if (procBtn) procBtn.remove();
+            let embeddedScript = document.createElement('script');
+            embeddedScript.textContent = `
+                globalProductionData = ${JSON.stringify(globalProductionData)};
+                globalMaterialData = ${JSON.stringify(globalMaterialData)};
+                globalSkuMaster = ${JSON.stringify(globalSkuMaster)};
+                articleMaster = ${JSON.stringify(articleMaster)};
+                rawBOMData = ${JSON.stringify(rawBOMData)};
+                materialTypeMap = ${JSON.stringify(materialTypeMap)};
+                window.addEventListener('DOMContentLoaded', function() {
+                    calculateSavingsAndKPIs();
+                    renderProductionTable();
+                    renderMaterialTable();
+                });
+            `;
+            let cloneBody = docClone.querySelector('body');
+            if (cloneBody) cloneBody.appendChild(embeddedScript);
+            const htmlContent = "<!DOCTYPE html>\n" + docClone.outerHTML;
+            const blob = new Blob([htmlContent], { type: 'text/html' });
+            const url = URL.createObjectURL(blob);
+            const a = document.createElement('a');
+            a.href = url;
+            a.download = 'Production_Material_Report.html';
+            document.body.appendChild(a);
+            a.click();
+            document.body.removeChild(a);
+            URL.revokeObjectURL(url);
+        }
+
+        window.addEventListener('DOMContentLoaded', () => {
+            if (globalProductionData && globalProductionData.length > 0) {
+                calculateSavingsAndKPIs();
+                renderProductionTable();
+                renderMaterialTable();
+            }
+        });
+    </script>
+</body>
+</html>
